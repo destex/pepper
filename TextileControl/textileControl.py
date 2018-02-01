@@ -22,10 +22,18 @@ robotPort = 9559
 # postures. There are no Python docs for this, use the C++ API: 
 # http://doc.aldebaran.com/2-1/naoqi/motion/alrobotposture-api.html#ALRobotPostureProxy
 
+MOVE_MAP = {
+	2: (-1,0),
+	4: (0,-1),
+	6: (0,1),
+	8: (1,0)
+}
+
 class TextileControl(object):
 	def __init__(self):
 		self.speech = ALProxy('ALTextToSpeech',robotIP,robotPort)
 		self.posture = ALProxy('ALRobotPosture',robotIP,robotPort)
+		self.motion = ALProxy('ALMotion',robotIP,robotPort)
 		self.reader = PatchReader()
 
 	def start(self):
@@ -36,6 +44,9 @@ class TextileControl(object):
 			print command
 			if command:
 				self.speech.say('%d'%command)
+				move = MOVE_MAP.get(command,(0,0))
+				speed = 0.1
+				self.motion.moveTo(move[0]*speed,0,move[1]*speed,1)
 			time.sleep(1)
 
 	def respond(self):
