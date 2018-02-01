@@ -25,10 +25,12 @@ robotPort = 9559
 class TextileControl(object):
 	def __init__(self):
 		self.speech = ALProxy('ALTextToSpeech',robotIP,robotPort)
+		self.posture = ALProxy('ALRobotPosture',robotIP,robotPort)
 		self.reader = PatchReader()
 
 	def start(self):
 		self.reader.start()
+		success = self.posture.goToPosture('Stand',0.5)
 		for i in range(1000):
 			command = self.reader.read() 
 			print command
