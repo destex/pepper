@@ -29,25 +29,41 @@ MOVE_MAP = {
 	8: (1,0)
 }
 
+TASKTYPE = ['move', 'hug', 'fingerGame']
+
+REACTION = ['', '', 'Thanks', 'A bit too much']
+
+NUMBER_OF_FINGERS = ['No finger', 'One finger', 'Two fingers', 'Three fingers', 'Four fingers', 'Five fingers']
+
 class TextileControl(object):
 	def __init__(self):
 		self.speech = ALProxy('ALTextToSpeech',robotIP,robotPort)
 		self.posture = ALProxy('ALRobotPosture',robotIP,robotPort)
 		self.motion = ALProxy('ALMotion',robotIP,robotPort)
 		self.reader = PatchReader()
+		self.taskType = ''
 
 	def start(self):
+		self.reader.taskType = self.taskType
 		self.reader.start()
 		success = self.posture.goToPosture('Stand',0.5)
 		for i in range(1000):
 			command = self.reader.read() 
 			print command
-			if command:
-				self.speech.say('%d'%command)
-				move = MOVE_MAP.get(command,(0,0))
-				speed = 0.1
-				self.motion.moveTo(move[0]*speed,0,move[1]*speed,1)
+			if self.taskType == 'move':
+				if command:
+					self.speech.say('%d'%command)
+					move = MOVE_MAP.get(command,(0,0))
+					speed = 0.1
+					self.motion.moveTo(move[0]*speed,0,move[1]*speed,1)
+			elif self.taskType == 'hug':
+				if command:
+					self.speech.say(REACTION[command])
+			elif self.taskType == 'fingerGame':
+				self.speech.say(NUMBER_OF_FINGERS[command])
+
 			time.sleep(1)
+
 
 	def respond(self):
 		self.speech.say('Hello')
@@ -55,6 +71,7 @@ class TextileControl(object):
 
 def main(): 
 	control = TextileControl()
+	control.taskType = TASKTYPE[1]
 	control.start()
 
 if __name__ == '__main__': 
