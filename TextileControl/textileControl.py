@@ -23,13 +23,38 @@ robotPort = 9559
 # http://doc.aldebaran.com/2-1/naoqi/motion/alrobotposture-api.html#ALRobotPostureProxy
 
 MOVE_MAP = {
-	2: (-1,0),
-	4: (0,-1),
-	6: (0,1),
-	8: (1,0)
+	1: (0,-1),	
+	2: (0,-1),
+	3: (0,-1),
+	4: (1,0),
+	5: (1,0),
+	6: (-1,0),
+	7: (0,1),
+	8: (0,1),
+	9: (0,1)
+}
+
+MOVE_VOICE = {
+	1: 'Right',
+	2: 'Right',
+	3: 'Right',	
+	4: 'Forward',
+	5: 'Forward',
+	6: 'Backing up',
+	7: 'Left',
+	8: 'Left',
+	9: 'Left'
 }
 
 TASKTYPE = ['move', 'hug', 'fingerGame']
+TASKPOSE = {
+	'move': 'Stand',
+	'hug': 'Stand',
+	'fingerGame': 'Crouch'
+}
+TASKPRESENTATION = {
+	'fingerGame': 'Bulleri Bulleri buck, please touch my back!'
+}
 
 REACTION = ['', '', 'Thanks', 'A bit too much']
 
@@ -46,15 +71,16 @@ class TextileControl(object):
 	def start(self):
 		self.reader.taskType = self.taskType
 		self.reader.start()
-		success = self.posture.goToPosture('Stand',0.5)
+		self.speech.say(TASKPRESENTATION[self.taskType])
+		success = self.posture.goToPosture(TASKPOSE[self.taskType],0.5)
 		for i in range(1000):
 			command = self.reader.read() 
 			print command
 			if self.taskType == 'move':
 				if command:
-					self.speech.say('%d'%command)
+					self.speech.say(MOVE_VOICE[command])
 					move = MOVE_MAP.get(command,(0,0))
-					speed = 0.1
+					speed = 0.3
 					self.motion.moveTo(move[0]*speed,0,move[1]*speed,1)
 			elif self.taskType == 'hug':
 				if command:
@@ -71,7 +97,7 @@ class TextileControl(object):
 
 def main(): 
 	control = TextileControl()
-	control.taskType = TASKTYPE[1]
+	control.taskType = TASKTYPE[2]
 	control.start()
 
 if __name__ == '__main__': 

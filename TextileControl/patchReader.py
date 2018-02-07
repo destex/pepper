@@ -7,7 +7,7 @@ import operator
 from collections import deque, Counter
 
 
-port = 'COM5'
+port = 'COM6'
 baudrate = 921600
 
 
@@ -198,6 +198,7 @@ class PatchReader(object):
 		self.thread = None
 		self.header = 'ff000000'
 
+		self.useBlankImage = True # Calculate a cancelation image at the start
 		self.packetMaxLen = 10
 		self.resultMaxLen = 10
 		self.dataLen = 604  # one frame size in a byte array
@@ -213,8 +214,22 @@ class PatchReader(object):
 		self.taskType = ''
 		try:
 			self.con = serial.Serial(port, baudrate)
-		except:
+		except Exception, e:
+			print e
 			print('------Error: can not connect to device------')  
+		if self.useBlankImage: self.blankImage()
+
+	def blankImage(self):
+		while len(self.packets) < self.packetMaxLen:
+			self.readSynchronized()
+		self.blank = [0 for v in self.packets[0]]
+		for p in self.packets:
+			for i in range(len(self.blank)):
+				self.blank[i] += p[i]
+
+		for i in range(len(self.blank)): 
+			self.blank[i] = self.blank[i] / self.packetMaxLen
+		print self.blank
 
 	def calMostCommonResult(self, instantResult):
 		result = 0
@@ -273,16 +288,21 @@ class PatchReader(object):
 						self.result = self.calMostCommonResult(direction)
 				elif self.taskType == 'hug':
 					# hug pepper
-					reaction = hugPepper(self.packets)
+					reaction = hugPepper(self.blankedPackets(self.packets))
 					self.result = self.calMostCommonResult(reaction)
 				elif self.taskType == 'fingerGame':
 					# the finger game
-					fingerNo = recog2(self.packets)
+					fingerNo = recog2(self.blankedPackets(self.packets))
 					self.result = self.calMostCommonResult(fingerNo)
 
 		#print 'result',self.result
 		return self.result
 
+	def blankedPackets(self,packets):
+		result = []
+		for p in packets:
+			result.append([max(x-y,0) for x,y in zip(p,self.blank)])
+		return result
 
 	def start(self):
 		def run():
@@ -297,6 +317,7 @@ class PatchReader(object):
 
 def main():
 	# receive arg from command line, port number
+	
 	reader = PatchReader()
 	reader.taskType = 'fingerGame'
 	reader.start()
@@ -304,6 +325,7 @@ def main():
 		print reader.read()
 		time.sleep(1)
 	reader.stop()
+	
 
 
 if __name__ == '__main__':
