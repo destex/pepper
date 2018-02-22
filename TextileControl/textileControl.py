@@ -71,7 +71,7 @@ class TextileControl(object):
 	def start(self):
 		self.reader.taskType = self.taskType
 		self.reader.start()
-		self.speech.say(TASKPRESENTATION[self.taskType])
+		#self.speech.say(TASKPRESENTATION[self.taskType])
 		success = self.posture.goToPosture(TASKPOSE[self.taskType],0.5)
 		for i in range(1000):
 			command = self.reader.read() 

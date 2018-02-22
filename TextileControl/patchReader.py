@@ -6,8 +6,9 @@ import threading
 import operator
 from collections import deque, Counter
 
+import patchConstants as pc
 
-port = 'COM6'
+port = pc.PATCHCOMPORT
 baudrate = 921600
 
 
@@ -53,10 +54,12 @@ def calculateTotalMag(index, packets):
 
 def movePepper(packets):
 	# the sensor is divided into 9 parts, labeled with int 1-9 (direction)
+
 	threshold = 5
 
 	# calculate diff
 	packetDiff = calculateDiff(-1, -2, packets)
+	img = packet2img(packetDiff)
 	index = [i for i, x in enumerate(packetDiff) if x>=threshold]
 	t_direction = []
 	if len(index) > 0:
@@ -72,11 +75,13 @@ def movePepper(packets):
 	else:
 		direction = -1
 
-	return direction+1
+	return direction+1, img
 
 
 def hugPepper(packets):
 	# the reaction is an integer describing the intensity, an int: 1,2,3
+	img = packet2img(packets[-1])
+
 	totalMag = calculateTotalMag(-1, packets)
 
 	#print('Total Mag =', totalMag)
@@ -90,7 +95,7 @@ def hugPepper(packets):
 
 	#print('reaction =', reaction)
 
-	return reaction
+	return reaction, img
 
 
 def recog(packets):
@@ -157,17 +162,28 @@ def recog(packets):
 	#	print "(%d, %d) size=%.1f resp=%.1f" % (kp.pt[0], kp.pt[1], kp.size, kp.response)
 
 	if len(keypoints) >5:
-		return 0
+		return 0, img
 
-	return len(keypoints)
+	return len(keypoints), img
+
+def packet2img(packet, normalize=False):
+	currFrame = np.array(packet)
+	currFrame.clip(0)
+	currFrame = np.float_(currFrame)
+	if normalize:
+		#currFrame *= 255.0 / currFrame.max()
+		currFrame = currFrame / 10.0
+	
+	return currFrame.reshape(20,20).astype('uint8')
 
 def recog2(packets):
 	# use finger tip contours
-	currFrame = np.array(packets[-1])
-	currFrame = np.float_(currFrame)
-	currFrame *= 255.0 / currFrame.max()
+	# currFrame = np.array(packets[-1])
+	# currFrame = np.float_(currFrame)
+	# currFrame *= 255.0 / currFrame.max()
+	# img = currFrame.reshape(20,20).astype('uint8')
 
-	img = currFrame.reshape(20,20).astype('uint8')
+	img = packet2img(packets[-1],True)
 
 	#img = cv2.medianBlur(img, 3)
 	#img = cv2.blur(img,(5,5))
@@ -178,19 +194,19 @@ def recog2(packets):
 	img = cv2.GaussianBlur(img,(3,3),0)
 	#img = cv2.bilateralFilter(img,5,75,75)
 
-	#print img
+	#print(img)
 
 	flag, thresh = cv2.threshold(img, 10, 255, cv2.THRESH_BINARY)
 	#contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
 	_, contours, _= cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-	#print 'length =', len(contours)
+	#print('length =', len(contours))
 
 	# remove initial errors
 	if len(contours) >5:
-		return 0
+		return 0, img
 
-	return len(contours)
+	return len(contours), img
 
 
 class PatchReader(object):
@@ -212,10 +228,12 @@ class PatchReader(object):
 		#self.avgDirectionResult = 0
 		self.result = 0
 		self.taskType = ''
+		self.img = np.zeros((20,20))
+		
 		try:
 			self.con = serial.Serial(port, baudrate)
-		except Exception, e:
-			print e
+		except Exception:
+			#print e
 			print('------Error: can not connect to device------')  
 		if self.useBlankImage: self.blankImage()
 
@@ -229,11 +247,12 @@ class PatchReader(object):
 
 		for i in range(len(self.blank)): 
 			self.blank[i] = self.blank[i] / self.packetMaxLen
-		print self.blank
+		print(self.blank)
 
 	def calMostCommonResult(self, instantResult):
 		result = 0
 		self.bufResults.append(instantResult)
+
 		if len(self.bufResults) == self.resultMaxLen: 
 			self.cnt.clear()
 			for ins in self.bufResults:
@@ -244,15 +263,19 @@ class PatchReader(object):
 
 	def read(self):
 		if self.thread:
-			return self.result
+			return self.result, self.img
 		else:
 			return self.readSynchronized()
 
 	def readSynchronized(self):
+		if not self.con.is_open:
+			try:
+				self.con = serial.Serial(port, baudrate)
+			except Exception:
+				print('------Error: can not connect to device------')  
+
 		data = self.con.read(self.dataLen).encode('hex')
 		
-		# print('length of data', len(data))
-		# print('has found header', foundHeader)
 		if not self.foundHeader:
 			#look for header ff000000
 			self.tempPacket = ''
@@ -261,8 +284,7 @@ class PatchReader(object):
 			if self.header in data:
 				index_firstbyte = data.index(self.header)
 				self.tempPacket += data[(index_firstbyte+8):]
-				# print('tempPacket length:-------', len(tempPacket))
-				# print(tempPacket)
+
 				self.foundHeader = True
 		elif self.header in data:
 			#print('FOUND---------------')
@@ -271,32 +293,32 @@ class PatchReader(object):
 			#print('index is ', index_lastbyte)
 			#print(data[0:index_lastbyte])
 			self.tempPacket += data[0:index_lastbyte]
-			#print('------------tempPacket----------', tempPacket)
+			#print('------------tempPacket----------', self.tempPacket)
 
 			if len(self.tempPacket) == 1200:
+				#print('Im here!!!!!')
 				splitTempPacket = [self.tempPacket[i:i+self.bytesPerHex] for i in range(0, len(self.tempPacket), self.bytesPerHex)]
 				#print('split data', splitTempPacket)
 				self.packets.append([int(x, 16) for x in splitTempPacket])
 				self.tempPacket = data[(index_lastbyte+8):]
-
-				#print(packets[-1])
 				
 				if self.taskType == 'move':
 					# move pepper
 					if len(self.packets) >= 2:
-						direction = movePepper(self.packets)
+						direction, self.img = movePepper(self.packets)
 						self.result = self.calMostCommonResult(direction)
 				elif self.taskType == 'hug':
 					# hug pepper
-					reaction = hugPepper(self.blankedPackets(self.packets))
+					reaction, self.img = hugPepper(self.blankedPackets(self.packets))
 					self.result = self.calMostCommonResult(reaction)
 				elif self.taskType == 'fingerGame':
 					# the finger game
-					fingerNo = recog2(self.blankedPackets(self.packets))
+					fingerNo, self.img = recog2(self.blankedPackets(self.packets))
 					self.result = self.calMostCommonResult(fingerNo)
+			else:
+				self.foundHeader = False
 
-		#print 'result',self.result
-		return self.result
+		return self.result, self.img
 
 	def blankedPackets(self,packets):
 		result = []
@@ -314,6 +336,8 @@ class PatchReader(object):
 
 	def stop(self):
 		self.thread = None
+		if self.con.is_open:
+			self.con.close()
 
 def main():
 	# receive arg from command line, port number
@@ -321,8 +345,8 @@ def main():
 	reader = PatchReader()
 	reader.taskType = 'fingerGame'
 	reader.start()
-	for i in range(30): 
-		print reader.read()
+	for i in range(10): 
+		print('in main', reader.read()[0])
 		time.sleep(1)
 	reader.stop()
 	

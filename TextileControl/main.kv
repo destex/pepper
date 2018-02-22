@@ -1,0 +1,31 @@
+<TaskBox>:
+    rows: 1
+    height: dp(108)
+    padding: dp(30)
+    spacing: dp(16)
+    BoxLayout:
+        orientation: "vertical"
+        Button:
+            text: "Hug Pepper"
+            font_size: 30
+            on_press: root.hugPepper()
+        Button:
+            text: "Move Pepper"
+            font_size: 30
+            on_press: root.movePepper()
+        Button:
+            text: "Bulleri-bulleri-bock"
+            font_size: 30
+            on_press: root.fingerGame()
+
+<PlotBox>:
+    rows: 1
+    height: dp(50)
+    padding: dp(200)
+    spacing: dp(16)
+    BoxLayout:
+        orientation: "vertical"
+        Button:
+            text: "STOP"
+            font_size: 30
+            on_press: root.stopPlotting()
