@@ -1,9 +1,3 @@
-"""
-* Commit to svn
-* Look for Aaaa sound (Jiong)
-* Response from pepper (Buleri Bock)
-"""
-
 from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.button import Button
