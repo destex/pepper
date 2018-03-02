@@ -56,26 +56,30 @@ def movePepper(packets):
 	# the sensor is divided into 9 parts, labeled with int 1-9 (direction)
 
 	threshold = 5
-
+	packet = packets[-1]
 	# calculate diff
-	packetDiff = calculateDiff(-1, -2, packets)
-	img = packet2img(packetDiff)
-	index = [i for i, x in enumerate(packetDiff) if x>=threshold]
+	#packetDiff = calculateDiff(-1, -2, packets)
+	#print packetDiff
+	#img = packet2img(packetDiff)
+	img = packet2img(packet)
+	#index = [i for i, x in enumerate(packetDiff) if x>=threshold]
+	index = [i for i, x in enumerate(packet) if x>=200]
 	t_direction = []
-	if len(index) > 0:
-		for ind in index:
-			ix = int(ind/20)
-			iy = ind - int(ind/20)*20
-			t_direction.append(block_x_axis[ix] + block_y_axis[iy]*3)
+	tx = 0
+	ty = 0
+	for ind in index:
+		ix = int(ind/20)
+		iy = ind - int(ind/20)*20
+		#t_direction.append(block_x_axis[ix] + block_y_axis[iy]*3)
+		tx += ix-10
+		ty += iy-10
 
-		cnt = Counter()
-		for  area in t_direction:
-			cnt[area] += 1
-		direction = cnt.most_common(1)[0][0]
-	else:
-		direction = -1
+	#cnt = Counter()
+	#for  area in t_direction:
+	#	cnt[area] += 1
+	#direction = cnt.most_common(1)[0][0]
 
-	return direction+1, img
+	return (tx,ty), img
 
 
 def hugPepper(packets):
@@ -88,7 +92,7 @@ def hugPepper(packets):
 
 	if totalMag > HUG_THRESHOLD_HIGH:
 		reaction = 3
-	elif HUG_THRESHOLD_MED <= totalMag <= HUG_THRESHOLD_HIGH:
+	elif HUG_THRESHOLD_LOW <= totalMag <= HUG_THRESHOLD_HIGH:
 		reaction = 2
 	else:
 		reaction = 1
@@ -196,7 +200,7 @@ def recog2(packets):
 
 	#print(img)
 
-	flag, thresh = cv2.threshold(img, 10, 255, cv2.THRESH_BINARY)
+	flag, thresh = cv2.threshold(img, 15, 255, cv2.THRESH_BINARY)
 	#contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
 	_, contours, _= cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -232,6 +236,7 @@ class PatchReader(object):
 		
 		try:
 			self.con = serial.Serial(port, baudrate)
+			print 'Connected to smart textile'
 		except Exception:
 			#print e
 			print('------Error: can not connect to device------')  
@@ -247,7 +252,6 @@ class PatchReader(object):
 
 		for i in range(len(self.blank)): 
 			self.blank[i] = self.blank[i] / self.packetMaxLen
-		print(self.blank)
 
 	def calMostCommonResult(self, instantResult):
 		result = 0
@@ -305,8 +309,9 @@ class PatchReader(object):
 				if self.taskType == 'move':
 					# move pepper
 					if len(self.packets) >= 2:
-						direction, self.img = movePepper(self.packets)
-						self.result = self.calMostCommonResult(direction)
+						direction, self.img = movePepper(self.blankedPackets(self.packets))
+						self.result = direction
+						#self.result = self.calMostCommonResult(direction)
 				elif self.taskType == 'hug':
 					# hug pepper
 					reaction, self.img = hugPepper(self.blankedPackets(self.packets))
@@ -343,10 +348,10 @@ def main():
 	# receive arg from command line, port number
 	
 	reader = PatchReader()
-	reader.taskType = 'fingerGame'
+	reader.taskType = 'move'
 	reader.start()
 	for i in range(10): 
-		print('in main', reader.read()[0])
+		#print('in main', reader.read()[0])
 		time.sleep(1)
 	reader.stop()
 	

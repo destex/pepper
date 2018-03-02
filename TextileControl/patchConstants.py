@@ -43,6 +43,6 @@ TASKPRESENTATION = {
 	'fingerGame': 'Bulleri Bulleri buck, please touch my back!'
 }
 
-REACTION = ['', '', 'Thanks', 'A bit too much']
+REACTION = ['', 'I want more', 'Thanks', 'A bit too much']
 
 NUMBER_OF_FINGERS = ['', 'One finger', 'Two fingers', 'Three fingers', 'Four fingers', 'Five fingers']
