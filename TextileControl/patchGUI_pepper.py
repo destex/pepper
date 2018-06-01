@@ -19,10 +19,12 @@ from patchReader import PatchReader
 import time
 import patchConstants as pc
 
-sys.path.insert(0,'C:\\pynaoqi-python2.7-2.5.5.5-win32-vs2013\\lib')
+#sys.path.insert(0,'C:\\pynaoqi-python2.7-2.5.5.5-win32-vs2013\\lib')
+sys.path.append("C:\\Naoqi\\lib")
 from naoqi import *
 
 broker = ALBroker("pythonBroker","0.0.0.0",0,pc.ROBOTIP,pc.ROBOTPORT)
+USE_OBSTACLE_AVOIDANCE = True
 
 class Pepper(object):
     """docstring for Pepper"""
@@ -33,6 +35,7 @@ class Pepper(object):
         self.posture = ALProxy('ALRobotPosture')
         self.anim = ALProxy('ALAnimationPlayer')
         self.motion = ALProxy('ALMotion')
+        self.motion.setExternalCollisionProtectionEnabled('All', USE_OBSTACLE_AVOIDANCE)
         #movement = ALProxy('ALAutonomousMovement',pc.ROBOTIP,pc.ROBOTPORT)
         self.life = ALProxy('ALAutonomousLife')
         self.tracker = ALProxy("ALTracker")
@@ -165,10 +168,11 @@ class TaskBox(GridLayout):
         MainWindow.result, MainWindow.img = MainWindow.reader.read()
         #print('result in GUI', MainWindow.result)
 
-        if hasattr(self,'img'):
+        if MainWindow.hasImgAttr:
             self.img.set_data(MainWindow.img)
         else:
             self.img = plt.imshow(MainWindow.img, cmap='gist_heat', vmin=0, vmax=255)
+            MainWindow.hasImgAttr = True
         #plt.draw()
         plt.pause(0.000001) 
 
@@ -241,6 +245,8 @@ class PlotBox(GridLayout):
         MainWindow.pepperEvent.cancel()
         MainWindow.result = 0
         plt.close('all')
+        MainWindow.hasImgAttr = False
+        #plt.clf()
         print('Stopped')
         MainWindow.sm.current = 'option'
         pepper.posture.goToPosture('Stand',0.5)
@@ -258,6 +264,7 @@ class MainWindow(BoxLayout):
 
     result = 0
     img = np.zeros((20,20))
+    hasImgAttr = False
 
     def __init__(self, **kwargs):
         super(MainWindow, self).__init__(**kwargs)
